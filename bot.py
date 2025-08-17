@@ -12,7 +12,7 @@ def check_cashback():
     print("[DEBUG] Page text fetched")
 
     # Force a test cashback value (e.g., 19%)
-    cashback_value = 19.0  
+    cashback_value = 22.0  
 
     if cashback_value >= 10:   # lowered threshold
         return cashback_value
@@ -36,3 +36,4 @@ if __name__ == "__main__":
         send_telegram_message(msg)
     else:
         print("[INFO] No profitable cashback found.")
+
