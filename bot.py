@@ -10,6 +10,8 @@ TELEGRAM_CHAT_ID = "7443910565"
 URL = "https://www.zingoy.com/gift-cards/croma-retail"
 
 check_count = 0
+bot_started = False  # flag to ensure "bot started" message only once
+
 
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -23,6 +25,7 @@ def send_telegram(message):
         requests.post(url, data=payload)
     except Exception as e:
         print("Error sending Telegram message:", e)
+
 
 def extract_cashback(soup, html_text):
     """Try multiple methods to get cashback percentage"""
@@ -51,8 +54,9 @@ def extract_cashback(soup, html_text):
 
     return max(values) if values else None
 
+
 def check_cashback():
-    global check_count
+    global check_count, bot_started
     check_count += 1
 
     try:
@@ -60,17 +64,18 @@ def check_cashback():
         soup = BeautifulSoup(response.text, "html.parser")
 
         cashback_value = extract_cashback(soup, response.text)
-
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        # Send "bot started" message only once
+        if not bot_started:
+            send_telegram("🤖 Bot started successfully!\n\nNow monitoring Croma cashback every 10 minutes (GitHub Actions limit).")
+            bot_started = True
+
+        # If no cashback found, skip silently (no spam)
         if cashback_value is None:
-            send_telegram(
-                f"⚠️ Could not find cashback info.\n\n"
-                f"⏰ Checked at: {now}\n"
-                f"🔄 Total checks today: {check_count}"
-            )
             return
 
+        # Only notify if cashback ≥ 22
         if cashback_value >= 22:
             message = (
                 "🚀 <b>Cashback Alert!</b>\n\n"
@@ -80,20 +85,11 @@ def check_cashback():
                 f"🔄 Total checks today: {check_count}\n\n"
                 "👉 <a href='https://www.zingoy.com/gift-cards/croma-retail'>Buy Croma Gift Card</a>"
             )
-        else:
-            message = (
-                "❌ <b>Low Cashback</b>\n\n"
-                f"🎯 Cashback Rate: <b>{cashback_value}%</b>\n"
-                "⚠️ Don’t buy now, cashback is too low.\n\n"
-                f"⏰ Checked at: {now}\n"
-                f"🔄 Total checks today: {check_count}\n\n"
-                "👉 <a href='https://www.zingoy.com/gift-cards/croma-retail'>Check Croma Gift Card</a>"
-            )
-
-        send_telegram(message)
+            send_telegram(message)
 
     except Exception as e:
         send_telegram(f"⚠️ Error fetching cashback data: {e}")
+
 
 if __name__ == "__main__":
     check_cashback()
