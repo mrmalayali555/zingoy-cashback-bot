@@ -1,69 +1,72 @@
 import requests
 from bs4 import BeautifulSoup
-import os
-import datetime
-import re
+from datetime import datetime
 
 # Telegram credentials
 TELEGRAM_TOKEN = "7572360149:AAHrjTAhjcpLyHJVPNQRM2TE64EDD0qCC-4"
 TELEGRAM_CHAT_ID = "7443910565"
 
-# Tracking checks
-CHECK_COUNT = 0
-BEST_RATE = 0
+# Zingoy Croma URL
+URL = "https://www.zingoy.com/gift-cards/croma-retail"
 
-def send_message(msg):
+# Track how many checks today
+check_count = 0
+
+def send_telegram(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": "HTML"
+    }
+    try:
+        requests.post(url, data=payload)
+    except Exception as e:
+        print("Error sending Telegram message:", e)
 
 def check_cashback():
-    global CHECK_COUNT, BEST_RATE
-    CHECK_COUNT += 1
+    global check_count
+    check_count += 1
 
-    url = "https://www.zingoy.com/gift-cards/croma-retail"
-    response = requests.get(url, timeout=30)
-    soup = BeautifulSoup(response.text, "html.parser")
+    try:
+        response = requests.get(URL, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+        soup = BeautifulSoup(response.text, "html.parser")
 
-    # Grab cashback text directly
-    cb_element = soup.find("div", class_="cb-rate")
-    if not cb_element:
-        send_message("⚠️ Cashback element not found on Zingoy page!")
-        return
+        # Extract cashback text
+        rate_tag = soup.select_one("span.cb-rate")
+        if not rate_tag:
+            send_telegram("⚠️ Could not find cashback info on Zingoy page.")
+            return
 
-    # Extract % number safely
-    cb_text = cb_element.get_text(strip=True)
-    match = re.search(r"(\d+)%", cb_text)
-    if not match:
-        send_message(f"⚠️ Could not parse cashback value: {cb_text}")
-        return
+        cashback_text = rate_tag.get_text(strip=True)  # e.g. "19%"
+        cashback_value = float(cashback_text.replace("%", "").strip())
 
-    cashback = int(match.group(1))
-    BEST_RATE = max(BEST_RATE, cashback)
+        # Prepare message
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Build attractive message
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if cashback >= 22:
-        msg = (
-            f"🚀 *Cashback Alert!*\n\n"
-            f"🎯 Cashback Rate: *{cashback}%*\n"
-            f"✅ Profitable to buy now!\n\n"
-            f"⏰ Checked at: {now}\n"
-            f"🔄 Total checks today: {CHECK_COUNT}\n"
-            f"🏆 Best today: {BEST_RATE}%\n\n"
-            f"👉 [Buy Croma Gift Card](https://www.zingoy.com/gift-cards/croma-retail)"
-        )
-    else:
-        msg = (
-            f"⚠️ *Low Cashback*\n\n"
-            f"🎯 Cashback Rate: *{cashback}%*\n"
-            f"❌ Don’t buy now, wait for better offer.\n\n"
-            f"⏰ Checked at: {now}\n"
-            f"🔄 Total checks today: {CHECK_COUNT}\n"
-            f"🏆 Best today: {BEST_RATE}%\n\n"
-            f"👉 [Check Again](https://www.zingoy.com/gift-cards/croma-retail)"
-        )
+        if cashback_value >= 22:
+            message = (
+                "🚀 <b>Cashback Alert!</b>\n\n"
+                f"🎯 Cashback Rate: <b>{cashback_value}%</b>\n"
+                "✅ Profitable to buy now!\n\n"
+                f"⏰ Checked at: {now}\n"
+                f"🔄 Total checks today: {check_count}\n\n"
+                "👉 <a href='https://www.zingoy.com/gift-cards/croma-retail'>Buy Croma Gift Card</a>"
+            )
+        else:
+            message = (
+                "❌ <b>Low Cashback</b>\n\n"
+                f"🎯 Cashback Rate: <b>{cashback_value}%</b>\n"
+                "⚠️ Don’t buy now, cashback is too low.\n\n"
+                f"⏰ Checked at: {now}\n"
+                f"🔄 Total checks today: {check_count}\n\n"
+                "👉 <a href='https://www.zingoy.com/gift-cards/croma-retail'>Check Croma Gift Card</a>"
+            )
 
-    send_message(msg)
+        send_telegram(message)
+
+    except Exception as e:
+        send_telegram(f"⚠️ Error fetching cashback data: {e}")
 
 if __name__ == "__main__":
     check_cashback()
