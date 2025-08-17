@@ -1,23 +1,38 @@
 import requests
 from bs4 import BeautifulSoup
-
-# Your Telegram details
-TOKEN = "7572360149:AAHrjTAhjcpLyHJVPNQRM2TE64EDD0qCC-4"
-CHAT_ID = "6013173295"
+import os
 
 URL = "https://www.zingoy.com/gift-cards/croma-retail"
-
-def send_telegram(msg):
-    requests.get(f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={msg}")
 
 def check_cashback():
     response = requests.get(URL, timeout=30)
     soup = BeautifulSoup(response.text, "html.parser")
-    text = soup.get_text()
-    if "19 % Cashback" in text or "18 % Cashback" in text:
-        send_telegram("✅ Cashback found! It's profitable to buy gift card now!")
-    else:
-        send_telegram("❌ Cashback below 18%, not profitable.")
+
+    cashback_text = soup.get_text()
+    print("[DEBUG] Page text fetched")
+
+    # Force a test cashback value (e.g., 19%)
+    cashback_value = 19.0  
+
+    if cashback_value >= 10:   # lowered threshold
+        return cashback_value
+    return None
+
+def send_telegram_message(message: str):
+    token = os.getenv("TELEGRAM_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    data = {"chat_id": chat_id, "text": message}
+
+    response = requests.post(url, data=data)
+    print("[DEBUG] Telegram response:", response.text)
 
 if __name__ == "__main__":
-    check_cashback()
+    cashback = check_cashback()
+    if cashback:
+        msg = f"[ALERT] Cashback {cashback}% found — profitable to buy gift card now!"
+        print(msg)
+        send_telegram_message(msg)
+    else:
+        print("[INFO] No profitable cashback found.")
