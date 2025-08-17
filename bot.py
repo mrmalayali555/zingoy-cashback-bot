@@ -22,7 +22,7 @@ def send_telegram(message):
         "text": message,
         "parse_mode": "HTML",
         "disable_web_page_preview": True
-    }
+    }  # ✅ dictionary ends here, NO extra }
     try:
         requests.post(url, data=payload)
     except Exception as e:
@@ -30,7 +30,6 @@ def send_telegram(message):
 
 
 def extract_cashback(soup, html_text):
-    """Try multiple methods to get cashback percentage"""
     values = []
 
     # Method 1: span.cb-rate
@@ -44,7 +43,7 @@ def extract_cashback(soup, html_text):
             except:
                 continue
 
-    # Method 2: regex search in raw HTML/text
+    # Method 2: regex in raw HTML/text
     matches = re.findall(r"(\d+(?:\.\d+)?)\s*% Cashback", html_text, flags=re.IGNORECASE)
     for m in matches:
         try:
@@ -96,4 +95,4 @@ if __name__ == "__main__":
     # Run continuously every 10 minutes
     while True:
         check_cashback()
-        time.sleep(600)  # 10 minutes
+        time.sleep(600)
