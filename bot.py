@@ -6,10 +6,8 @@ from datetime import datetime
 TELEGRAM_TOKEN = "7572360149:AAHrjTAhjcpLyHJVPNQRM2TE64EDD0qCC-4"
 TELEGRAM_CHAT_ID = "7443910565"
 
-# Zingoy Croma URL
 URL = "https://www.zingoy.com/gift-cards/croma-retail"
 
-# Track how many checks today
 check_count = 0
 
 def send_telegram(message):
@@ -32,16 +30,27 @@ def check_cashback():
         response = requests.get(URL, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Extract cashback text
-        rate_tag = soup.select_one("span.cb-rate")
-        if not rate_tag:
+        # Find ALL cashback spans
+        rate_tags = soup.select("span.cb-rate")
+
+        cashback_values = []
+        for tag in rate_tags:
+            text = tag.get_text(strip=True)
+            if text.endswith("%"):
+                try:
+                    val = float(text.replace("%", "").strip())
+                    # Ignore weirdly large values (junk from the page)
+                    if 0 < val < 100:
+                        cashback_values.append(val)
+                except:
+                    continue
+
+        if not cashback_values:
             send_telegram("⚠️ Could not find cashback info on Zingoy page.")
             return
 
-        cashback_text = rate_tag.get_text(strip=True)  # e.g. "19%"
-        cashback_value = float(cashback_text.replace("%", "").strip())
+        cashback_value = max(cashback_values)  # take the highest valid %
 
-        # Prepare message
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         if cashback_value >= 22:
