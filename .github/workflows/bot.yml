@@ -2,8 +2,8 @@ name: Zingoy Cashback Bot
 
 on:
   schedule:
-    - cron: "*/2 * * * *"   # runs every 2 minutes
-  workflow_dispatch:         # manual run
+    - cron: "*/2 * * * *"   # every 2 minutes
+  workflow_dispatch:         # allow manual run
 
 jobs:
   run-bot:
@@ -24,4 +24,5 @@ jobs:
         pip install requests beautifulsoup4
 
     - name: Run cashback bot
-      run: python bot.py
+      run: |
+        python bot.py
