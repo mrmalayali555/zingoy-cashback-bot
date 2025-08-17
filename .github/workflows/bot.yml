@@ -1,0 +1,24 @@
+name: Zingoy Cashback Bot
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 minutes
+  workflow_dispatch:         # manual run button
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Run script
+        run: python bot.py
