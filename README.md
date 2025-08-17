@@ -1,0 +1,1 @@
+# Zingoy Cashback Bot
