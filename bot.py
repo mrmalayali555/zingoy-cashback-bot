@@ -2,34 +2,38 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 import re
-import time
+import os
 
-# Telegram credentials (directly included)
+# Telegram credentials
 TELEGRAM_TOKEN = "7572360149:AAHrjTAhjcpLyHJVPNQRM2TE64EDD0qCC-4"
 TELEGRAM_CHAT_ID = "7443910565"
 
 URL = "https://www.zingoy.com/gift-cards/croma-retail"
-
-check_count = 0
-bot_started = False
-last_alert = 0  # store last notified cashback
-
+START_FILE = "bot_started.txt"  # file to remember if start message was sent
 
 def send_telegram(message):
+    """Send a message to your Telegram chat"""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": message,
         "parse_mode": "HTML",
         "disable_web_page_preview": True
-    }  # ✅ dictionary ends here, NO extra }
+    }
     try:
         requests.post(url, data=payload)
     except Exception as e:
         print("Error sending Telegram message:", e)
 
+def send_start_message():
+    """Send start message only once"""
+    if not os.path.exists(START_FILE):
+        send_telegram("🤖 Bot started successfully!\n\nNow monitoring Croma cashback.")
+        with open(START_FILE, "w") as f:
+            f.write("started")
 
 def extract_cashback(soup, html_text):
+    """Extract cashback percentage from the page"""
     values = []
 
     # Method 1: span.cb-rate
@@ -55,44 +59,35 @@ def extract_cashback(soup, html_text):
 
     return max(values) if values else None
 
-
 def check_cashback():
-    global check_count, bot_started, last_alert
-    check_count += 1
-
+    """Check the cashback once and send alert only if profitable"""
     try:
         response = requests.get(URL, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
         soup = BeautifulSoup(response.text, "html.parser")
         cashback_value = extract_cashback(soup, response.text)
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Send "bot started" message only once
-        if not bot_started:
-            send_telegram("🤖 Bot started successfully!\n\nNow monitoring Croma cashback.")
-            bot_started = True
-
         if cashback_value is None:
+            print(f"{now} — Cashback not found")
             return
 
-        # Only notify if cashback ≥ 22 and not duplicate
-        if cashback_value >= 22 and cashback_value != last_alert:
+        # Only send message if cashback >= 22%
+        if cashback_value >= 22:
             message = (
                 "🚀 <b>Cashback Alert!</b>\n\n"
                 f"🎯 Cashback Rate: <b>{cashback_value}%</b>\n"
                 "✅ Profitable to buy now!\n\n"
-                f"⏰ Checked at: {now}\n"
-                f"🔄 Total checks today: {check_count}\n\n"
+                f"⏰ Checked at: {now}\n\n"
                 "👉 <a href='https://www.zingoy.com/gift-cards/croma-retail'>Buy Croma Gift Card</a>"
             )
             send_telegram(message)
-            last_alert = cashback_value
+            print(f"{now} — Message sent: Cashback {cashback_value}%")
+        else:
+            print(f"{now} — Cashback {cashback_value}% — Not profitable, no message sent")
 
     except Exception as e:
-        send_telegram(f"⚠️ Error fetching cashback data: {e}")
-
+        print(f"{datetime.now()} — Error: {e}")
 
 if __name__ == "__main__":
-    # Run continuously every 10 minutes
-    while True:
-        check_cashback()
-        time.sleep(600)
+    send_start_message()  # send bot started message once
+    check_cashback()      # check cashback once per run
