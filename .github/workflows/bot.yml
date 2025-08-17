@@ -27,5 +27,4 @@ jobs:
       env:
         TELEGRAM_TOKEN: 7572360149:AAHrjTAhjcpLyHJVPNQRM2TE64EDD0qCC-4
         TELEGRAM_CHAT_ID: 7443910565
-      run: |
-        python bot.py
+      run: python bot.py
