@@ -2,7 +2,7 @@ name: Zingoy Cashback Bot
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # runs every 30 minutes
+    - cron: "*/2 * * * *"   # runs every 30 minutes
   workflow_dispatch:         # allows manual run from Actions tab
 
 jobs:
