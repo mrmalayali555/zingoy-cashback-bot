@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
+import re
 
 # Telegram credentials
 TELEGRAM_TOKEN = "7572360149:AAHrjTAhjcpLyHJVPNQRM2TE64EDD0qCC-4"
@@ -15,12 +16,40 @@ def send_telegram(message):
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": message,
-        "parse_mode": "HTML"
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
     }
     try:
         requests.post(url, data=payload)
     except Exception as e:
         print("Error sending Telegram message:", e)
+
+def extract_cashback(soup, html_text):
+    """Try multiple methods to get cashback percentage"""
+    values = []
+
+    # Method 1: span.cb-rate
+    for tag in soup.select("span.cb-rate"):
+        txt = tag.get_text(strip=True)
+        if txt.endswith("%"):
+            try:
+                val = float(txt.replace("%", "").strip())
+                if 0 < val < 100:
+                    values.append(val)
+            except:
+                continue
+
+    # Method 2: regex search in raw HTML/text
+    matches = re.findall(r"(\d+)\s*% Cashback", html_text, flags=re.IGNORECASE)
+    for m in matches:
+        try:
+            val = float(m.strip())
+            if 0 < val < 100:
+                values.append(val)
+        except:
+            continue
+
+    return max(values) if values else None
 
 def check_cashback():
     global check_count
@@ -30,28 +59,17 @@ def check_cashback():
         response = requests.get(URL, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Find ALL cashback spans
-        rate_tags = soup.select("span.cb-rate")
-
-        cashback_values = []
-        for tag in rate_tags:
-            text = tag.get_text(strip=True)
-            if text.endswith("%"):
-                try:
-                    val = float(text.replace("%", "").strip())
-                    # Ignore weirdly large values (junk from the page)
-                    if 0 < val < 100:
-                        cashback_values.append(val)
-                except:
-                    continue
-
-        if not cashback_values:
-            send_telegram("⚠️ Could not find cashback info on Zingoy page.")
-            return
-
-        cashback_value = max(cashback_values)  # take the highest valid %
+        cashback_value = extract_cashback(soup, response.text)
 
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if cashback_value is None:
+            send_telegram(
+                f"⚠️ Could not find cashback info.\n\n"
+                f"⏰ Checked at: {now}\n"
+                f"🔄 Total checks today: {check_count}"
+            )
+            return
 
         if cashback_value >= 22:
             message = (
